@@ -22,5 +22,5 @@ clean:
 
 release:
 	@rm -rf dist/
-	python -m build
-	twine upload --sign --identity E0B84F81 dist/*
+	python setup.py sdist bdist_wheel
+	twine upload --sign --identity E0B84F81

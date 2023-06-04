@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # python-sqlparse documentation build configuration file, created by
 # sphinx-quickstart on Thu Feb 26 08:19:28 2009.
 #

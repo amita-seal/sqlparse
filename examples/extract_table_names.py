@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
-# Copyright (C) 2009-2020 the sqlparse authors and contributors
+# Copyright (C) 2009-2018 the sqlparse authors and contributors
 # <see AUTHORS file>
 #
 # This example is part of python-sqlparse and is released under
@@ -31,7 +32,8 @@ def extract_from_part(parsed):
     for item in parsed.tokens:
         if from_seen:
             if is_subselect(item):
-                yield from extract_from_part(item)
+                for x in extract_from_part(item):
+                    yield x
             elif item.ttype is Keyword:
                 return
             else:
@@ -65,4 +67,4 @@ if __name__ == '__main__':
     """
 
     tables = ', '.join(extract_tables(sql))
-    print('Tables: {}'.format(tables))
+    print('Tables: {0}'.format(tables))

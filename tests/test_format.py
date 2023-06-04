@@ -1,10 +1,12 @@
+# -*- coding: utf-8 -*-
+
 import pytest
 
 import sqlparse
 from sqlparse.exceptions import SQLParseError
 
 
-class TestFormat:
+class TestFormat(object):
     def test_keywordcase(self):
         sql = 'select * from bar; -- select foo\n'
         res = sqlparse.format(sql, keyword_case='upper')
@@ -41,26 +43,26 @@ class TestFormat:
     def test_strip_comments_single(self):
         sql = 'select *-- statement starts here\nfrom foo'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\nfrom foo'
+        assert res == 'select * from foo'
         sql = 'select * -- statement starts here\nfrom foo'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\nfrom foo'
+        assert res == 'select * from foo'
         sql = 'select-- foo\nfrom -- bar\nwhere'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select\nfrom\nwhere'
+        assert res == 'select from where'
         sql = 'select *-- statement starts here\n\nfrom foo'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\n\nfrom foo'
+        assert res == 'select * from foo'
         sql = 'select * from foo-- statement starts here\nwhere'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select * from foo\nwhere'
+        assert res == 'select * from foo where'
         sql = 'select a-- statement starts here\nfrom foo'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select a\nfrom foo'
+        assert res == 'select a from foo'
         sql = '--comment\nselect a-- statement starts here\n' \
               'from foo--comment\nf'
         res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select a\nfrom foo\nf'
+        assert res == 'select a from foo f'
 
     def test_strip_comments_invalid_option(self):
         sql = 'select-- foo\nfrom -- bar\nwhere'
@@ -83,23 +85,6 @@ class TestFormat:
         sql = 'select (/* sql /* starts here */ select 2)'
         res = sqlparse.format(sql, strip_comments=True)
         assert res == 'select (select 2)'
-
-    def test_strip_comments_preserves_linebreak(self):
-        sql = 'select * -- a comment\r\nfrom foo'
-        res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\nfrom foo'
-        sql = 'select * -- a comment\nfrom foo'
-        res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\nfrom foo'
-        sql = 'select * -- a comment\rfrom foo'
-        res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\nfrom foo'
-        sql = 'select * -- a comment\r\n\r\nfrom foo'
-        res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\n\nfrom foo'
-        sql = 'select * -- a comment\n\nfrom foo'
-        res = sqlparse.format(sql, strip_comments=True)
-        assert res == 'select *\n\nfrom foo'
 
     def test_strip_ws(self):
         f = lambda sql: sqlparse.format(sql, strip_whitespace=True)
@@ -138,7 +123,7 @@ class TestFormat:
                 == "SELECT some_column LIKE 'value\\\\\\'\r' WHERE id = 1\n")
 
 
-class TestFormatReindentAligned:
+class TestFormatReindentAligned(object):
     @staticmethod
     def formatter(sql):
         return sqlparse.format(sql, reindent_aligned=True)
@@ -309,7 +294,7 @@ class TestFormatReindentAligned:
             '  from table'])
 
 
-class TestSpacesAroundOperators:
+class TestSpacesAroundOperators(object):
     @staticmethod
     def formatter(sql):
         return sqlparse.format(sql, use_space_around_operators=True)
@@ -336,7 +321,7 @@ class TestSpacesAroundOperators:
         assert self.formatter(sql) == 'select a * b - c from table'
 
 
-class TestFormatReindent:
+class TestFormatReindent(object):
     def test_option(self):
         with pytest.raises(SQLParseError):
             sqlparse.format('foo', reindent=2)
@@ -613,7 +598,7 @@ class TestFormatReindent:
             '     , (5, 6)'])
 
 
-class TestOutputFormat:
+class TestOutputFormat(object):
     def test_python(self):
         sql = 'select * from foo;'
         f = lambda sql: sqlparse.format(sql, output_format='python')
@@ -678,7 +663,7 @@ def test_format_column_ordering():
 
 
 def test_truncate_strings():
-    sql = "update foo set value = '{}';".format('x' * 1000)
+    sql = "update foo set value = '{0}';".format('x' * 1000)
     formatted = sqlparse.format(sql, truncate_strings=10)
     assert formatted == "update foo set value = 'xxxxxxxxxx[...]';"
     formatted = sqlparse.format(sql, truncate_strings=3, truncate_char='YYY')

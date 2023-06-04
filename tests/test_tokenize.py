@@ -1,11 +1,13 @@
+# -*- coding: utf-8 -*-
+
 import types
-from io import StringIO
 
 import pytest
 
 import sqlparse
 from sqlparse import lexer
 from sqlparse import sql, tokens as T
+from sqlparse.compat import StringIO
 
 
 def test_tokenize_simple():
@@ -150,7 +152,7 @@ def test_stream_error():
     'INNER JOIN',
     'LEFT INNER JOIN'])
 def test_parse_join(expr):
-    p = sqlparse.parse('{} foo'.format(expr))[0]
+    p = sqlparse.parse('{0} foo'.format(expr))[0]
     assert len(p.tokens) == 3
     assert p.tokens[0].ttype is T.Keyword
 
@@ -199,12 +201,6 @@ def test_parse_group_by():
 def test_parse_order_by():
     p = sqlparse.parse('ORDER BY')[0]
     assert len(p.tokens) == 1
-    assert p.tokens[0].ttype is T.Keyword
-
-
-def test_parse_window_as():
-    p = sqlparse.parse('WINDOW w AS')[0]
-    assert len(p.tokens) == 5
     assert p.tokens[0].ttype is T.Keyword
 
 

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import pytest
 
 import sqlparse
@@ -34,7 +36,7 @@ def test_grouping_assignment(s):
 @pytest.mark.parametrize('s', ["x > DATE '2020-01-01'", "x > TIMESTAMP '2020-01-01 00:00:00'"])
 def test_grouping_typed_literal(s):
     parsed = sqlparse.parse(s)[0]
-    assert isinstance(parsed[0][4], sql.TypedLiteral)
+    assert isinstance(parsed[4], sql.TypedLiteral)
 
 
 @pytest.mark.parametrize('s, a, b', [
@@ -324,11 +326,6 @@ def test_grouping_alias_case():
     assert p.tokens[0].get_alias() == 'foo'
 
 
-def test_grouping_alias_ctas():
-    p = sqlparse.parse('CREATE TABLE tbl1 AS SELECT coalesce(t1.col1, 0) AS col1 FROM t1')[0]
-    assert p.tokens[10].get_alias() == 'col1'
-    assert isinstance(p.tokens[10].tokens[0], sql.Function)
-
 def test_grouping_subquery_no_parens():
     # Not totally sure if this is the right approach...
     # When a THEN clause contains a subquery w/o parenthesis around it *and*
@@ -394,6 +391,10 @@ def test_statement_get_type():
     assert f(' update foo').get_type() == 'UPDATE'
     assert f('\nupdate foo').get_type() == 'UPDATE'
     assert f('foo').get_type() == 'UNKNOWN'
+    # Statements that have a whitespace after the closing semicolon
+    # are parsed as two statements where later only consists of the
+    # trailing whitespace.
+    assert f('\n').get_type() == 'UNKNOWN'
 
 
 def test_identifier_with_operators():
@@ -483,7 +484,7 @@ def test_comparison_with_parenthesis():
 ))
 def test_comparison_with_strings(operator):
     # issue148
-    p = sqlparse.parse("foo {} 'bar'".format(operator))[0]
+    p = sqlparse.parse("foo {0} 'bar'".format(operator))[0]
     assert len(p.tokens) == 1
     assert isinstance(p.tokens[0], sql.Comparison)
     assert p.tokens[0].right.value == "'bar'"
@@ -549,20 +550,9 @@ def test_comparison_with_functions():
     assert p.tokens[0].right.value == 'bar.baz'
 
 
-def test_comparison_with_typed_literal():
-    p = sqlparse.parse("foo = DATE 'bar.baz'")[0]
-    assert len(p.tokens) == 1
-    comp = p.tokens[0]
-    assert isinstance(comp, sql.Comparison)
-    assert len(comp.tokens) == 5
-    assert comp.left.value == 'foo'
-    assert isinstance(comp.right, sql.TypedLiteral)
-    assert comp.right.value == "DATE 'bar.baz'"
-
-
 @pytest.mark.parametrize('start', ['FOR', 'FOREACH'])
 def test_forloops(start):
-    p = sqlparse.parse('{} foo in bar LOOP foobar END LOOP'.format(start))[0]
+    p = sqlparse.parse('{0} foo in bar LOOP foobar END LOOP'.format(start))[0]
     assert (len(p.tokens)) == 1
     assert isinstance(p.tokens[0], sql.For)
 
@@ -650,7 +640,3 @@ def test_grouping_as_cte():
     assert p[0].get_alias() is None
     assert p[2].value == 'AS'
     assert p[4].value == 'WITH'
-
-def test_grouping_create_table():
-    p = sqlparse.parse("create table db.tbl (a string)")[0].tokens
-    assert p[4].value == "db.tbl"

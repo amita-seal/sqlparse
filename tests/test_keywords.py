@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 import pytest
 
 from sqlparse import tokens
-from sqlparse.lexer import Lexer
+from sqlparse.keywords import SQL_REGEX
 
 
 class TestSQLREGEX:
@@ -9,5 +10,5 @@ class TestSQLREGEX:
                                         '1.', '-1.',
                                         '.1', '-.1'])
     def test_float_numbers(self, number):
-        ttype = next(tt for action, tt in Lexer.get_default_instance()._SQL_REGEX if action(number))
+        ttype = next(tt for action, tt in SQL_REGEX if action(number))
         assert tokens.Number.Float == ttype

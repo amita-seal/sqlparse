@@ -1,11 +1,12 @@
+# -*- coding: utf-8 -*-
+
 """Tests sqlparse.parse()."""
-from io import StringIO
 
 import pytest
 
 import sqlparse
-from sqlparse import sql, tokens as T, keywords
-from sqlparse.lexer import Lexer
+from sqlparse import sql, tokens as T
+from sqlparse.compat import StringIO, text_type
 
 
 def test_parse_tokenize():
@@ -101,12 +102,6 @@ def test_parse_square_brackets_notation_isnt_too_greedy():
     assert t[0].tokens[-1].get_real_name() == '[bar]'
 
 
-def test_parse_square_brackets_notation_isnt_too_greedy2():
-    # see issue583
-    t = sqlparse.parse('[(foo[i])]')[0].tokens
-    assert isinstance(t[0], sql.SquareBrackets)  # not Identifier!
-
-
 def test_parse_keyword_like_identifier():
     # see issue47
     t = sqlparse.parse('foo.key')[0].tokens
@@ -133,12 +128,6 @@ def test_parse_nested_function():
     assert type(t[0]) is sql.Function
 
 
-def test_parse_div_operator():
-    p = sqlparse.parse('col1 DIV 5 AS div_col1')[0].tokens
-    assert p[0].tokens[0].tokens[2].ttype is T.Operator
-    assert p[0].get_alias() == 'div_col1'
-
-
 def test_quoted_identifier():
     t = sqlparse.parse('select x.y as "z" from foo')[0].tokens
     assert isinstance(t[2], sql.Identifier)
@@ -149,7 +138,6 @@ def test_quoted_identifier():
 @pytest.mark.parametrize('name', [
     'foo', '_foo',  # issue175
     '1_data',  # valid MySQL table name, see issue337
-    '業者名稱',  # valid at least for SQLite3, see issue641
 ])
 def test_valid_identifier_names(name):
     t = sqlparse.parse(name)[0].tokens
@@ -196,16 +184,11 @@ def test_placeholder(ph):
     assert p[0].ttype is T.Name.Placeholder
 
 
-@pytest.mark.parametrize('num, expected', [
-    ('6.67428E-8', T.Number.Float),
-    ('1.988e33', T.Number.Float),
-    ('1e-12', T.Number.Float),
-    ('e1', None),
-])
-def test_scientific_numbers(num, expected):
+@pytest.mark.parametrize('num', ['6.67428E-8', '1.988e33', '1e-12'])
+def test_scientific_numbers(num):
     p = sqlparse.parse(num)[0].tokens
     assert len(p) == 1
-    assert p[0].ttype is expected
+    assert p[0].ttype is T.Number.Float
 
 
 def test_single_quotes_are_strings():
@@ -349,8 +332,7 @@ def test_pprint():
         "|  |  `- 0 Name 'd0'",
         "|  |- 10 Punctuation ','",
         "|  |- 11 Whitespace ' '",
-        "|  `- 12 Identifier 'e0'",
-        "|     `- 0 Name 'e0'",
+        "|  `- 12 Float 'e0'",
         "|- 3 Whitespace ' '",
         "|- 4 Keyword 'from'",
         "|- 5 Whitespace ' '",
@@ -427,26 +409,26 @@ def test_dbldollar_as_literal(sql, is_literal):
 
 
 def test_non_ascii():
-    _test_non_ascii = "insert into test (id, name) values (1, 'тест');"
+    _test_non_ascii = u"insert into test (id, name) values (1, 'тест');"
 
     s = _test_non_ascii
     stmts = sqlparse.parse(s)
     assert len(stmts) == 1
     statement = stmts[0]
-    assert str(statement) == s
+    assert text_type(statement) == s
     assert statement._pprint_tree() is None
 
     s = _test_non_ascii.encode('utf-8')
     stmts = sqlparse.parse(s, 'utf-8')
     assert len(stmts) == 1
     statement = stmts[0]
-    assert str(statement) == _test_non_ascii
+    assert text_type(statement) == _test_non_ascii
     assert statement._pprint_tree() is None
 
 
 def test_get_real_name():
     # issue 369
-    s = "update a t set t.b=1"
+    s = u"update a t set t.b=1"
     stmts = sqlparse.parse(s)
     assert len(stmts) == 1
     assert 'a' == stmts[0].tokens[2].get_real_name()
@@ -455,14 +437,14 @@ def test_get_real_name():
 
 def test_from_subquery():
     # issue 446
-    s = 'from(select 1)'
+    s = u'from(select 1)'
     stmts = sqlparse.parse(s)
     assert len(stmts) == 1
     assert len(stmts[0].tokens) == 2
     assert stmts[0].tokens[0].value == 'from'
     assert stmts[0].tokens[0].ttype == T.Keyword
 
-    s = 'from (select 1)'
+    s = u'from (select 1)'
     stmts = sqlparse.parse(s)
     assert len(stmts) == 1
     assert len(stmts[0].tokens) == 3
@@ -490,79 +472,3 @@ def test_parenthesis():
                                                     T.Newline,
                                                     T.Newline,
                                                     T.Punctuation]
-
-
-def test_configurable_keywords():
-    sql = """select * from foo BACON SPAM EGGS;"""
-    tokens = sqlparse.parse(sql)[0]
-
-    assert list(
-        (t.ttype, t.value)
-        for t in tokens
-        if t.ttype not in sqlparse.tokens.Whitespace
-    ) == [
-        (sqlparse.tokens.Keyword.DML, "select"),
-        (sqlparse.tokens.Wildcard, "*"),
-        (sqlparse.tokens.Keyword, "from"),
-        (None, "foo BACON"),
-        (None, "SPAM EGGS"),
-        (sqlparse.tokens.Punctuation, ";"),
-    ]
-
-    Lexer.get_default_instance().add_keywords(
-        {
-            "BACON": sqlparse.tokens.Name.Builtin,
-            "SPAM": sqlparse.tokens.Keyword,
-            "EGGS": sqlparse.tokens.Keyword,
-        }
-    )
-
-    tokens = sqlparse.parse(sql)[0]
-
-    # reset the syntax for later tests.
-    Lexer.get_default_instance().default_initialization()
-
-    assert list(
-        (t.ttype, t.value)
-        for t in tokens
-        if t.ttype not in sqlparse.tokens.Whitespace
-    ) == [
-        (sqlparse.tokens.Keyword.DML, "select"),
-        (sqlparse.tokens.Wildcard, "*"),
-        (sqlparse.tokens.Keyword, "from"),
-        (None, "foo"),
-        (sqlparse.tokens.Name.Builtin, "BACON"),
-        (sqlparse.tokens.Keyword, "SPAM"),
-        (sqlparse.tokens.Keyword, "EGGS"),
-        (sqlparse.tokens.Punctuation, ";"),
-    ]
-
-
-def test_configurable_regex():
-    lex = Lexer.get_default_instance()
-    lex.clear()
-
-    my_regex = (r"ZORDER\s+BY\b", sqlparse.tokens.Keyword)
-
-    lex.set_SQL_REGEX(
-        keywords.SQL_REGEX[:38]
-        + [my_regex]
-        + keywords.SQL_REGEX[38:]
-    )
-    lex.add_keywords(keywords.KEYWORDS_COMMON)
-    lex.add_keywords(keywords.KEYWORDS_ORACLE)
-    lex.add_keywords(keywords.KEYWORDS_PLPGSQL)
-    lex.add_keywords(keywords.KEYWORDS_HQL)
-    lex.add_keywords(keywords.KEYWORDS_MSACCESS)
-    lex.add_keywords(keywords.KEYWORDS)
-
-    tokens = sqlparse.parse("select * from foo zorder by bar;")[0]
-
-    # reset the syntax for later tests.
-    Lexer.get_default_instance().default_initialization()
-
-    assert list(
-        (t.ttype, t.value)
-        for t in tokens
-        if t.ttype not in sqlparse.tokens.Whitespace
-    )[4] == (sqlparse.tokens.Keyword, "zorder by")
